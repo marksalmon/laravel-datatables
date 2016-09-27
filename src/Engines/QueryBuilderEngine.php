@@ -105,6 +105,19 @@ class QueryBuilderEngine extends BaseEngine
                                 ->setBindings($myQuery->getBindings())->count();
     }
 
+    public function typesList($field)
+    {
+        $myQuery = clone $this->query;
+        $myQuery->limit(1000000);
+        $wrappedfield = $this->wrap($field);
+        return $this->connection->table($this->connection->raw('(' . $myQuery->toSql() . ') count_row_table'))
+            ->select(\DB::raw("DISTINCT({$wrappedfield})"))->setBindings($myQuery->getBindings())->get()
+            ->reject(function ($value) use ($field) {
+                return ($value->{$field} == '' || $value->{$field} == 'null' || $value->{$field} == '0');
+            })->flatten()->map(function ($result) use ($field) {
+                return $result->{$field};
+            });
+    }
     /**
      * Wrap column with DB grammar.
      *

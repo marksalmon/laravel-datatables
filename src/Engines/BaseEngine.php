@@ -653,6 +653,24 @@ abstract class BaseEngine implements DataTableEngineContract
             'draw'            => (int) $this->request['draw'],
             'recordsTotal'    => $this->totalRecords,
             'recordsFiltered' => $this->filteredRecords,
+            'ddLists'        => [
+                [
+                'select' => 'job_type',
+                'data' => $this->typesList('job_type'),
+                ],
+                [
+                'select' => 'job_dispatch',
+                'data' => $this->typesList('job_dispatch'),
+                ],
+                [
+                'select' => 'day',
+                'data' => $this->typesList('day'),
+                ],
+                [
+                'select' => 'county',
+                'data' => $this->typesList('county'),
+                ],
+            ]
         ], $this->appends);
 
         if (isset($this->transformer)) {

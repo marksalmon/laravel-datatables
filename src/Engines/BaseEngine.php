@@ -19,6 +19,82 @@ use Yajra\Datatables\Processors\DataProcessor;
 abstract class BaseEngine implements DataTableEngineContract
 {
     /**
+     * Render json response.
+     *
+     * @param bool $object
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function render($object = false)
+    {
+        $output = array_merge([
+            'draw'            => (int) $this->request['draw'],
+            'recordsTotal'    => $this->totalRecords,
+            'recordsFiltered' => $this->filteredRecords,
+            'ddLists'        => [
+                [
+                'select' => 'job_type',
+                'data' => $this->typesList('job_type'),
+                ],
+                [
+                'select' => 'job_dispatch',
+                'data' => $this->typesList('job_dispatch'),
+                ],
+                [
+                'select' => 'day',
+                'data' => $this->typesList('day'),
+                ],
+                [
+                'select' => 'county',
+                'data' => $this->typesList('county'),
+                ],
+                [
+                'select' => 'shift',
+                'data' => $this->typesList('shift'),
+                ],
+                [
+                'select' => 'callsign',
+                'data' => $this->typesList('callsign'),
+                ],
+            ]
+        ], $this->appends);
+
+        if (isset($this->transformer)) {
+            $fractal = app('datatables.fractal');
+
+            if ($this->serializer) {
+                $fractal->setSerializer(new $this->serializer);
+            }
+
+            //Get transformer reflection
+            //Firs method parameter should be data/object to transform
+            $reflection = new \ReflectionMethod($this->transformer, 'transform');
+            $parameter  = $reflection->getParameters()[0];
+
+            //If parameter is class assuming it requires object
+            //Else just pass array by default
+            if ($parameter->getClass()) {
+                $resource = new Collection($this->results(), $this->createTransformer());
+            } else {
+                $resource = new Collection(
+                    $this->getProcessedData($object),
+                    $this->createTransformer()
+                );
+            }
+
+            $collection     = $fractal->createData($resource)->toArray();
+            $output['data'] = $collection['data'];
+        } else {
+            $output['data'] = Helper::transform($this->getProcessedData($object));
+        }
+
+        if ($this->isDebugging()) {
+            $output = $this->showDebugger($output);
+        }
+
+        return new JsonResponse($output);
+    }
+
+    /**
      * Datatables Request object.
      *
      * @var \Yajra\Datatables\Request
@@ -639,74 +715,6 @@ abstract class BaseEngine implements DataTableEngineContract
         if ($this->request->isPaginationable() && ! $this->skipPaging) {
             $this->paging();
         }
-    }
-
-    /**
-     * Render json response.
-     *
-     * @param bool $object
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function render($object = false)
-    {
-        $output = array_merge([
-            'draw'            => (int) $this->request['draw'],
-            'recordsTotal'    => $this->totalRecords,
-            'recordsFiltered' => $this->filteredRecords,
-            'ddLists'        => [
-                [
-                'select' => 'job_type',
-                'data' => $this->typesList('job_type'),
-                ],
-                [
-                'select' => 'job_dispatch',
-                'data' => $this->typesList('job_dispatch'),
-                ],
-                [
-                'select' => 'day',
-                'data' => $this->typesList('day'),
-                ],
-                [
-                'select' => 'county',
-                'data' => $this->typesList('county'),
-                ],
-            ]
-        ], $this->appends);
-
-        if (isset($this->transformer)) {
-            $fractal = app('datatables.fractal');
-
-            if ($this->serializer) {
-                $fractal->setSerializer(new $this->serializer);
-            }
-
-            //Get transformer reflection
-            //Firs method parameter should be data/object to transform
-            $reflection = new \ReflectionMethod($this->transformer, 'transform');
-            $parameter  = $reflection->getParameters()[0];
-
-            //If parameter is class assuming it requires object
-            //Else just pass array by default
-            if ($parameter->getClass()) {
-                $resource = new Collection($this->results(), $this->createTransformer());
-            } else {
-                $resource = new Collection(
-                    $this->getProcessedData($object),
-                    $this->createTransformer()
-                );
-            }
-
-            $collection     = $fractal->createData($resource)->toArray();
-            $output['data'] = $collection['data'];
-        } else {
-            $output['data'] = Helper::transform($this->getProcessedData($object));
-        }
-
-        if ($this->isDebugging()) {
-            $output = $this->showDebugger($output);
-        }
-
-        return new JsonResponse($output);
     }
 
     /**
